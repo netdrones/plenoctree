@@ -9,54 +9,80 @@ from sklearn.model_selection import train_test_split
 
 TRAIN = 0.95
 
-def load_cameras(jsonfile):
-    with open(jsonfile) as f:
-        data = json.load(f)
+class Loader:
 
-    # Generate train/test splits
-    keys = list(data.keys())
-    train, test = train_test_split(keys, test_size=(1-TRAIN))
+    def  __init__(self, workspace_dir, depth=False):
 
-    return data, train, test
+        self.depth = depth
+        self.workspace_dir = workspace_dir
+        self.dense_dir = os.path.join(self.workspace_dir, 'dense')
+        self.pose_dir = os.path.join(self.workspace_dir, 'pose')
+        self.rgb_dir = os.path.join(self.workspace_dir, 'rgb')
 
-def write_txt(keys, data, out_dir):
-    rgb_dir = os.path.join(out_dir, 'rgb')
-    pose_dir = os.path.join(out_dir, 'pose')
-    parent_dir = os.path.join(out_dir, '../dense')
-    intrinsic_dir = os.path.join(out_dir, 'intrinsics')
+        if os.path.exists(self.pose_dir):
+            shutil.rmtree(self.pose_dir)
+        if os.path.exists(self.rgb_dir):
+            shutil.rmtree(self.rgb_dir)
 
-    if os.path.exists(rgb_dir):
-        shutil.rmtree(rgb_dir)
-    os.mkdir(rgb_dir)
-    if os.path.exists(pose_dir):
-        shutil.rmtree(pose_dir)
-    os.mkdir(pose_dir)
-    if os.path.exists(intrinsic_dir):
-        shutil.rmtree(intrinsic_dir)
-    os.mkdir(intrinsic_dir)
+        os.mkdir(self.pose_dir)
+        os.mkdir(self.rgb_dir)
 
-    for key in keys:
-        fname = key.split('.')[0] + '.txt'
-        intrinsics = np.array(data[key]['K'])
-        pose = np.array(data[key]['W2C'])
-        np.savetxt(os.path.join(intrinsic_dir, fname), intrinsics)
-        np.savetxt(os.path.join(pose_dir, fname), pose)
-        os.symlink(os.path.abspath(os.path.join(parent_dir, f'images/{key}')), os.path.join(rgb_dir, key))
+    def load(self):
+        data, train, test = self.load_cameras(
+                os.path.join(workspace_dir, 'posed_images/cameras_normalized.json'))
+        self.write_data(train, data, 'train')
+        self.write_data(test, data, 'test')
+
+    def read_array(self, path):
+        with open(path, "rb") as fid:
+            width, height, channels = np.genfromtxt(fid, delimiter="&", max_rows=1,
+                                                    usecols=(0, 1, 2), dtype=int)
+            fid.seek(0)
+            num_delimiter = 0
+            byte = fid.read(1)
+            while True:
+                if byte == b"&":
+                    num_delimiter += 1
+                    if num_delimiter >= 3:
+                        break
+                byte = fid.read(1)
+            array = np.fromfile(fid, np.float32)
+        array = array.reshape((width, height, channels), order="F")
+        return np.transpose(array, (1, 0, 2)).squeeze()
+
+    def load_cameras(self, jsonfile):
+        with open(jsonfile) as f:
+            data = json.load(f)
+
+        # Generate train/test splits
+        keys = list(data.keys())
+        train, test = train_test_split(keys, test_size=(1-TRAIN))
+
+        return data, train, test
+
+    def write_data(self, keys, data, split):
+        if split == 'train':
+            intrinsics = np.array(data[list(keys)[0]]['K'])
+            np.savetxt(os.path.join(self.workspace_dir, 'intrinsics.txt'), intrinsics)
+
+        for key in keys:
+            if split == 'train':
+                fname = '0_' + key.split('.')[0] + '.txt'
+                os.symlink(os.path.abspath(os.path.join(self.dense_dir, f'images/{key}')), os.path.join(self.rgb_dir, '0_' + key))
+            elif split == 'test':
+                fname = '1_' + key.split('.')[0] + '.txt'
+                os.symlink(os.path.abspath(os.path.join(self.dense_dir, f'images/{key}')), os.path.join(self.rgb_dir, '1_' + key))
+            else:
+                raise NotImplementedError
+            if self.depth:
+                depth_map = self.read_array(os.path.join(self.dense_dir, f'stereo/depth_maps/{key}.geometric.bin'))
+                np.savez(os.path.join(self.pose_dir, key.split('.')[0] + '_depth'), depth_map)
+
+            pose = np.array(data[key]['W2C'])
+            np.savetxt(os.path.join(self.pose_dir, fname), pose.reshape(4,4))
 
 if __name__ == '__main__':
 
     workspace_dir = sys.argv[1]
-    train_dir = os.path.join(workspace_dir, 'train')
-    test_dir = os.path.join(workspace_dir, 'test')
-
-    dir_list = [train_dir, test_dir]
-    for d in dir_list:
-        if os.path.exists(d):
-            shutil.rmtree(d)
-        os.mkdir(d)
-
-    data, train, test = load_cameras(
-            os.path.join(workspace_dir, 'posed_images/cameras_normalized.json'))
-
-    write_txt(train, data, train_dir)
-    write_txt(test, data, test_dir)
+    loader = Loader(workspace_dir)
+    loader.load()
