@@ -10,6 +10,9 @@ install:
 	pip install --upgrade jax jaxlib==0.1.69+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html
 
 house:
+	if [ ! -d data ]; then mkdir data && gsutil -m cp -r gs://lucas.netdron.es/house data; fi
+	python utils/generate_poses.py data/house
+	python utils/data_loader.py data/house
 	python -m nerf_sh.train \
 	  --train_dir ckpts/house \
 	  --config nerf_sh/config/tt \

@@ -63,6 +63,7 @@ class Loader:
     def write_data(self, keys, data, split):
         if split == 'train':
             intrinsics = np.array(data[list(keys)[0]]['K'])
+            intrinsics = intrinsics.reshape(4,4)  # K is always 4x4 matrix
             np.savetxt(os.path.join(self.workspace_dir, 'intrinsics.txt'), intrinsics)
 
         for key in keys:
