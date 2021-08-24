@@ -15,8 +15,7 @@ while getopts "hci:" opt; do
 	  	export CLEAN=true
 		;;
 	i)
-	  	export EXP_NAME="$OPTARG"
-		export WORKSPACE_DIR=data/$EXP_NAME
+	  	export WORKSPACE_DIR="$OPTARG"
 		;;
 	o)
 	  	export OVERLAP_HIGH="$OPTARG"
@@ -38,7 +37,6 @@ then
 	pip install bin/opencv/*.whl
 fi
 
-EXP_NAME=$WORKSPACE_DIR
 DOWNSCALE=2
 NUM_GPUS="$(nvidia-smi --query_gpu=name --format=csv,noheader | wc -l)"
 
@@ -86,6 +84,6 @@ python utils/generate_poses.py $WORKSPACE_DIR
 python utils/data_loader.py $WORKSPACE_DIR
 
 python -m nerf_sh.train \
-  --train_dir ckpts/$EXP_NAME \
+  --train_dir ckpts/$WORKSPACE_DIR\
   --config nerf_sh/config/tt \
   --data_dir $WORKSPACE_DIR
