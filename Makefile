@@ -7,7 +7,7 @@ install:
 	conda env update -f environment.yml
 	$(CONDA_ACTIVATE) ${ENV_NAME}
 	pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
-	pip install svox==0.2.28
+	pip install svox
 	pip install --upgrade jax jaxlib==0.1.69+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html
 
 house:
