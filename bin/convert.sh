@@ -31,7 +31,7 @@ python -m octree.extraction \
   --output $CKPT_ROOT/$SCENE/octrees/tree.npz
 
 python -m octree.optimization \
-  --input $CKPT_ROOT/$SCENE/tree.npz \
+  --input $CKPT_ROOT/$SCENE/octrees/tree.npz \
   --config $CONFIG_FILE \
   --data_dir $DATA_ROOT/$SCENE/ \
   --output $CKPT_ROOT/$SCENE/octrees/tree_opt.npz
